@@ -1,0 +1,142 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use 5.024;
+use feature 'signatures';
+no warnings qw(experimental::signatures);
+
+use Getopt::Std;
+use Pod::Usage;
+
+sub listdir ($dir = $_) {
+    my $thisdir = [];
+    my %seen = ();
+
+    opendir(my $dh, $dir) || die "Can't open $dir: $!";
+    while (my $d = readdir $dh) {
+        next if $d =~ /^\./;     # Skip hidden files
+        $d =~ s/\)[^)]+$/)/;     # Consolidate multi-part files, subtitles, etc
+        $d =~ s/\.[^. ]{3,5}$//; # Remove file extension
+        next if $seen{$d}++;     # Remove duplicates
+
+        push @$thisdir, -d "$dir/$d"? {$d => listdir("$dir/$d")}: $d;
+    }
+    closedir $dh;
+    return $thisdir;
+};
+
+sub printdir ($list, $prefix = '') {
+    for my $item (@$list) {
+        if (ref $item eq "HASH") {
+            printdir($item->{$_}, "$prefix$_/") for keys %$item;
+        } else {
+            print "$prefix$item\n";
+        };
+    }
+};
+
+sub main {
+    my $opt = {f => ''};
+    $Getopt::Std::STANDARD_HELP_VERSION = 1;
+    getopts('f:', $opt) || pod2usage();
+
+    for ($opt->{f}) {
+        if (/^PERL$/i) {
+            use Data::Dumper;
+            print Data::Dumper::Dumper listdir for @ARGV;
+        } elsif (/^JSON$/i) {
+            use JSON;
+            print JSON::to_json listdir, {pretty => 1} for @ARGV;
+        } elsif (/^YAML$/i) {
+            use YAML;
+            local $YAML::Indent = 4;
+            local $YAML::SortKeys = 2;
+            print YAML::Dump listdir for @ARGV;
+        } else {
+            printdir listdir for @ARGV;
+        }
+    }
+}
+
+our $VERSION = 0.02;
+
+sub HELP_MESSAGE {
+    pod2usage(-verbose => 2);
+}
+
+main;
+
+__END__
+
+=head1 NAME
+
+manifest - A script to list the contents of a directory.
+
+=head1 SYNOPSIS
+
+B<manifest> [B<-f> I<format>] I<directory> I<...>
+
+B<manifest> [B<--help> | B<--version>]
+
+=head1 DESCRIPTION
+
+This script lists the contents of a directory.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-f> I<format>
+
+Choose the output format. Valid formats are:
+
+=over
+
+=item PERL
+
+Perl's Data::Dumper format.
+
+=item JSON
+
+JavaScript Object Notation format.
+
+=item YAML
+
+YAML Ain't Markup Language format.
+
+=back
+
+The default is a flat text list of the files' relative path.
+
+=back
+
+=head1 DEPENDENCIES
+
+L<Data::dumper>, L<JSON>, L<YAML>.
+
+=head1 BUGS AND LIMITATIONS
+
+No bugs have been reported.
+
+Please report any bugs or feature requests to the author.
+
+=head1 AUTHOR
+
+Ihab Hussein <ihab@ihabhussein.com>.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2016, Ihab Hussein <ihab@ihabhussein.com>. All rights reserved.
+
+This script is free software; you can redistribute it and/or modify it under the
+same terms as Perl itself.
+
+=head1 SEE ALSO
+
+L<Data::Dumper>,
+JavaScript Object Notation L<http://json.org>,
+YAML Ain't Markup Language L<http://yaml.org>.
+
+=cut

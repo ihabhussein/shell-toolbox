@@ -1,0 +1,44 @@
+#!/bin/sh
+
+do_find_cloud_dir() {
+    local target=""
+    case $1 in
+    [Ii][Cc][Ll][Oo][Uu][Dd]) # iCloud
+        target="$HOME/Library/Mobile Documents/com~apple~CloudDocs"
+        ;;
+    [Bb][Oo][Xx]) # Box
+        target=$(cat "$HOME/Library/Application\ Support/Box/Box\ Sync/sync_root_folder.txt" 2> /dev/null)
+        ;;
+    [Dd][Rr][Oo][Pp][Bb][Oo][Xx]) # Dropbox
+        target=$(defaults read com.getdropbox.dropbox NSNavLastRootDirectory 2> /dev/null)
+        target="${target:+$target/Dropbox}"
+        ;;
+    [Gg][Oo][Oo][Gg][Ll][Ee]) # Google Drive
+        target=$(defaults read com.google.GoogleDrive NSNavLastRootDirectory 2> /dev/null)
+        ;;
+    [Oo][Nn][Ee][Dd][Rr][Ii][Vv][Ee]) # Microsoft OneDrive
+        # Not yet implemented
+        ;;
+    *)
+        exit 2
+        ;;
+    esac
+    echo "echo $target" | sh
+}
+
+if [ $# -ne 1 ]; then
+    cat >&2 <<EOT
+Usage:
+    $0 CLOUD_PROVIDER
+
+Known Cloud Providers:
+    icloud      Apple iCloud
+    box         Box
+    dropbox     Dropbox
+    google      Gogle Drive
+    onedrive    Microsoft OneDrive
+EOT
+    exit 1
+else
+    do_find_cloud_dir "$1"
+fi

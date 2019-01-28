@@ -1,0 +1,18 @@
+#!/bin/sh
+
+keyfile=$(mktemp)
+csrfile=$(mktemp)
+
+echo ">>> Generate the key"
+openssl genrsa -des3 -out "$keyfile" 2048
+
+echo ">>> Remove the password"
+openssl rsa -in "$keyfile" -out key.pem
+
+echo ">>> Generate the Certificate Signing Request"
+openssl req -new -key key.pem -out "$csrfile"
+
+echo ">>> Generate the Certificate"
+openssl x509 -req -in "$csrfile" -signkey key.pem -out cert.pem -days 3650
+
+rm "$keyfile" "$csrfile"

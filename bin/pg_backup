@@ -1,0 +1,89 @@
+#!/bin/sh
+
+VERSION=0.1
+
+print_usage() {
+    cat <<__USAGE__
+Usage:
+    $0 [connection_options] [pg_dump_options] [-D destination]
+    $0 [connection_options] -c username
+
+Options:
+    -D destination  /local/path s3://bucket/path [user@]host:path
+    -c user_name    create databse user instead of doing backup
+__USAGE__
+}
+
+create_user() {
+    local username=$1; shift
+
+    local password=$(openssl rand -base64 36 | tr -d +/ | head -c 12)
+    local create_command="
+        CREATE USER $username WITH
+            NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD '$password';"
+    local grant_command="
+        GRANT CONNECT ON DATABASE $PGDATABASE TO $username;
+        GRANT SELECT ON ALL TABLES IN SCHEMA public TO $username;
+        GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO $username;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO $username;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO $username;"
+
+    psql $* -c "$create_command" $PGDATABASE >/dev/null 2>/dev/null
+    if [ $? -eq 0 ]; then
+        echo "$PGHOST:$PGPORT:$PGDATABASE:$username:$password"
+    fi
+    psql $* -c "$grant_command" $PGDATABASE >/dev/null 2>/dev/null
+}
+
+_file_name() {
+    echo "$PGHOST-$PGDATABASE-$(date -ju +%Y%m%d%H%M%S)"
+}
+
+_move_file() {
+    case $2 in
+    '')     :               ;;
+    s3://*) aws s3 cp $1 $2 ;;
+    *:*)    scp       $1 $2 ;;
+    *)      cp        $1 $2 ;;
+    esac
+}
+
+do_backup() {
+    local destination=$1; shift
+    local filename=$(_file_name)
+    pg_dump $* -f $filename         && _move_file $filename $destination
+}
+
+do_backup_roles() {
+    local destination=$1; shift
+    local filename=$(_file_name)
+    pg_dumpall -r $* -f $filename   && _move_file $filename $destination
+}
+
+: ${PGHOST=localhost}
+: ${PGPORT=5432}
+: ${PGDATABASE=$USER}
+
+while [ $# -gt 0 ]; do
+    option=$1; shift
+    case $option in
+    --help)     print_usage; exit ;;
+    --version)  echo $VERSION; exit ;;
+    -h)         PGHOST=${1?Missing argument for $option}; shift ;;
+    -p)         PGPORT=${1?Missing argument for $option}; shift ;;
+    -d)         PGDATABASE=${1?Missing argument for $option}; shift ;;
+    -D)         destination=${1?Missing argument for $option}; shift ;;
+    -c)         username=${1?Missing argument for $option}; shift ;;
+    -r)         roles=1 ;;
+    *)          options="$options $option" ;;
+    esac
+done
+
+export PGHOST PGPORT PGDATABASE
+if [ -n "$username" ]; then
+    create_user $username $options
+elif [ -n "$roles" ]; then
+    do_backup_roles "$destination" $options
+else
+    do_backup "$destination" $options
+fi

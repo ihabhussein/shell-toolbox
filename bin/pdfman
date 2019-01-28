@@ -1,0 +1,15 @@
+#!/bin/sh
+
+case $(uname) in
+Darwin)
+    man -t $@ | open -f -a /Applications/Preview.app
+    ;;
+*)
+    for last; do true; done # Geting to the last argument
+    command -v ps2pdf > /dev/null 2>&1 && {
+        man -t $@ | ps2pdf - $last.pdf
+    } || {
+        man -t $@ > $last.ps
+    }
+    ;;
+esac

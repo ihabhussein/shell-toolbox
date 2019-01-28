@@ -1,0 +1,102 @@
+#!/bin/sh
+
+################################################################################
+
+print_usage() {
+    cat >&2 <<EOT
+Usage:
+    $0 list
+    $0 status [VMNAME]
+    $0 [run|runclean|update|ports] VMNAME
+    $0 connect    VMNAME rulename guestport hostport
+    $0 disconnect VMNAME rulename
+EOT
+    exit 1
+}
+
+do_list() {
+    VBoxManage list vms | sed 's/"\(.*\)".*/\1/' | sort
+}
+
+do_status() {
+    local vm_name=$1
+
+    : ${vm_name:=$(do_list)}
+    for vm in $vm_name; do
+        echo $vm $(VBoxManage showvminfo $vm | sed -n '/^State: *\(.*\) (.*/s//\1/p')
+    done
+}
+
+do_list_ports() {
+    local vm_name=$1
+
+    VBoxManage showvminfo $vm_name | sed -n '/^\(NIC [0-9]*\) Rule([0-9]*)/s//\1/p'
+}
+
+validate_name() {
+    local vm_name=$1
+
+    VBoxManage list vms | grep \"$vm_name\" 2>&1 > /dev/null
+    if [ $? -ne 0 ]; then
+        echo >&2 "Invalid virtual machine name: $vm_name"
+        exit 2
+    fi
+}
+
+do_run() {
+    local vm_name=$1
+
+    VBoxHeadless --startvm $vm_name
+}
+
+do_runclean() {
+    local vm_name=$1
+    local snapshot=$vm_name-Snapshot
+
+    VBoxManage snapshot $vm_name list | grep $snapshot || (
+        VBoxManage snapshot $vm_name take $snapshot
+    )
+    VBoxHeadless --startvm $vm_name
+    VBoxManage snapshot $vm_name restore $snapshot
+}
+
+do_update() {
+    local vm_name=$1
+    local snapshot=$vm_name-Snapshot
+
+    VBoxManage snapshot $vm_name list | grep $snapshot && (
+        VBoxManage snapshot $vm_name restore $snapshot
+        VBoxManage snapshot $vm_name delete $snapshot
+    )
+    VBoxHeadless --startvm $vm_name
+    VBoxManage snapshot $vm_name take $snapshot
+}
+
+if [ $# -eq 1 ]; then
+    case $1 in
+    list)       do_list;;
+    status)     do_status;;
+    *)          print_usage;;
+    esac
+elif [ $# -eq 2 ]; then
+    validate_name $2
+    case $1 in
+    status)     do_status $2;;
+    run)        do_run $2;;
+    runclean)   do_runclean $2;;
+    update)     do_update $2;;
+    ports)      do_list_ports $2;;
+    *)          print_usage;;
+    esac
+elif [ $# -eq 3 ] && [ $1 == 'disconnect' ]; then
+    validate_name $2
+    echo '>>> DISCONNECT <<<'
+elif [ $# -eq 5 ] && [ $1 == 'connect' ]; then
+    validate_name $2
+    echo '>>> CONNECT <<<'
+else
+    print_usage
+fi
+
+#VBoxManage controlvm ${vmname} --natpf${natpf} ${rulename},tcp,,${hostport},,${guestport}
+#VBoxManage controlvm ${vmname} --natpf${natpf} delete ${rulename}

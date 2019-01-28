@@ -1,0 +1,16 @@
+#!/usr/bin/env perl
+
+use 5.024;
+use strict;
+use warnings;
+
+local $/ = '';
+my $i = 0;
+
+while (<>) {
+    if ($i) {
+        s/(\d\d:\d\d)\.(\d\d\d)/$1,$2/g;
+        print $i, "\n", $_;
+    }
+    $i++;
+}

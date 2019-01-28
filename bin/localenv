@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# Local environment directory
+localenv="${1:-$(pwd)/.local}"
+shift
+archname=$(perl -MConfig -e 'print $Config::Config{archname}')
+mkdir -p "$localenv/bin" \
+         "$localenv/lib/perl5/$archname" \
+         "$localenv/lib/python"
+localenv="$(cd "$localenv"; pwd)"
+export localenv
+
+# Perl 5
+PERL5LIB="$localenv/lib/perl5${PERL5LIB:+:}$PERL5LIB"
+PERL_LOCAL_LIB_ROOT="$localenv${PERL_LOCAL_LIB_ROOT:+:}$PERL_LOCAL_LIB_ROOT"
+PERL_MB_OPT="--install_base $localenv"
+PERL_MM_OPT="INSTALL_BASE=$localenv"
+PERL_CPANM_OPT="--local-lib=$localenv --notest"
+export PERL5LIB PERL_LOCAL_LIB_ROOT PERL_MB_OPT PERL_MM_OPT PERL_CPANM_OPT
+
+# Python
+PYTHONUSERBASE="$localenv"
+PIP_USER=true
+export PYTHONUSERBASE PIP_USER
+
+# Ruby
+GEM_HOME="$localenv"
+GEM_PATH="$localenv"
+export GEM_HOME GEM_PATH
+
+# Path
+PATH="$localenv/bin${PATH:+:}$PATH"
+export PATH
+
+# Start a command or new shell
+exec "${@:-$SHELL}"

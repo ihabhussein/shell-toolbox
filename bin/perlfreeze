@@ -1,0 +1,40 @@
+#!/usr/bin/env perl
+
+use 5.024;
+use strict;
+use warnings;
+
+use Cwd;
+use File::Find;
+use Module::CoreList;
+
+my (%use, %package);
+
+find(sub {
+    return unless /\.p[lm]$/;
+
+    open my $fh, '<', $_ or die "$File::Find::name: $!";
+    while (<$fh>) {
+        push @{$package{$1}}, $File::Find::name if /^\s*package\s+(\D[\w:]+)/;
+        push @{$use{$1}}, $File::Find::name     if /^\s*use\s+(\D[\w:]+)/;
+    };
+    close $fh;
+}, shift || getcwd);
+
+push @{$use{$_}}, 'ARGV' for @ARGV;
+
+for (sort keys %use) {
+    next if exists $package{$_};
+    next if Module::CoreList::first_release($_);
+
+    my ($module, $v) = ($_, 0);
+    eval {
+        s/::/\//g;
+        require "$_.pm";
+        $v = eval "\$$module\::VERSION" || '0';
+    };
+
+    say "# $_" for @{$use{$module}};
+    say "requires '$module', $v;";
+    say '';
+}

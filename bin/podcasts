@@ -1,0 +1,363 @@
+#!/usr/bin/env perl
+
+use 5.024;
+use strict;
+use warnings;
+
+use Cwd;
+use Getopt::Std;
+use Pod::Usage;
+use XML::Simple;
+
+use DBI;
+
+################################################################################
+# SQL
+################################################################################
+
+my ($dbh, %sql);
+
+sub startup {
+    my $dbfile = shift;
+
+    while (<DATA>) {
+        next unless /^-- (\w+)$/;
+        my ($key, $val) = ($1, '');
+
+        while (<DATA>) {
+            last if /^----/;
+            $val .= $_;
+        }
+        $sql{$key} = $val;
+    }
+
+    $dbh = DBI->connect(
+        "dbi:SQLite:$dbfile", undef, undef,
+        {PrintError => 0, RaiseError => 0}
+    );
+    $dbh->do($sql{Startup});
+}
+
+sub initdb {
+    $dbh->do($sql{CreateFeeds});
+    $dbh->do($sql{CreateItems});
+}
+
+sub cleanup {
+    $dbh->do($sql{CleanUp});
+}
+
+################################################################################
+# Utils
+################################################################################
+
+my $MONTHES = {
+    Jan => '01', Feb => '02', Mar => '03', Apr => '04', May => '05', Jun => '06',
+    Jul => '07', Aug => '08', Sep => '09', Oct => '10', Nov => '11', Dec => '12',
+};
+
+sub rfc822Date {
+    local $_ = shift;
+    if (/(\d\d?) (\w\w\w) (\d\d\d\d) (\d\d:\d\d:\d\d)/) {
+        return sprintf "%04d-%02d-%02d %s", $3, $MONTHES->{$2}, $1, $4;
+    } else {
+        return $_;
+    }
+}
+
+sub downloadFile {
+    my $url = shift || '';
+    my $opt = shift || {};
+
+    my $fileName = substr($url, rindex($url, '/') + 1) || 'untitled';
+    $fileName =~ y/?*/_/;
+
+    my @curl = ('curl', '-L', '-o', "$fileName-partial");
+    push @curl, '--limit-rate', $opt->{LimitRate} if $opt->{LimitRate};
+    push @curl, '-C', '-'                         if $opt->{Continue};
+    push @curl, '-s'                              if $opt->{Silent};
+
+    if (0 == system @curl, $url) {
+        rename "$fileName-partial", $fileName;
+        return $fileName;
+    } else {
+        return undef;
+    }
+}
+
+################################################################################
+# Feeds
+################################################################################
+
+sub add {
+    my @url = @_;
+
+    my $sthAddFeed = $dbh->prepare($sql{AddFeed});
+    foreach (@url) {
+        my $fileName = downloadFile($_, {Silent => 1});
+        next unless $fileName;
+
+        my $xml = XMLin($fileName);
+        $sthAddFeed->execute($_, $xml->{channel}{title}, $xml->{channel}{description});
+        unlink $fileName;
+    }
+}
+
+sub feeds {
+    my ($url, $title, $description);
+
+    my $sthFeeds = $dbh->prepare($sql{GetFeeds});
+    $sthFeeds->execute();
+    $sthFeeds->bind_columns(\$url, \$title, \$description);
+    say "$title\n$url\n$description\n" while $sthFeeds->fetch;
+}
+
+sub update {
+    my ($feedUrl, $feedTitle, $description);
+
+    my $sthFeeds    = $dbh->prepare($sql{GetFeeds});
+    my $sthAddItems = $dbh->prepare($sql{AddItem});
+    $sthFeeds->execute();
+    $sthFeeds->bind_columns(\$feedUrl, \$feedTitle, \$description);
+    while ($sthFeeds->fetch) {
+        say $feedTitle;
+        my $fileName = downloadFile($feedUrl, {Silent => 1});
+        next unless $fileName;
+
+        my $xml = XML::Simple->new(ForceArray => ['item', 'enclosure']);
+        my $items = $xml->XMLin($fileName)->{channel}{item};
+        $sthAddItems->execute(
+            $_->{enclosure}[0]{url}, $feedUrl, $_->{title}, rfc822Date($_->{pubDate}), $_->{description}
+        ) foreach @{$items};
+        unlink $fileName;
+    }
+}
+
+sub list {
+    my ($url, $title, $description, $date, $feedTitle);
+
+    my $sthNewItems = $dbh->prepare($sql{GetItems});
+    $sthNewItems->execute();
+    $sthNewItems->bind_columns(\$url, \$title, \$description, \$date, \$feedTitle);
+    say "$title\n$feedTitle ($date)\n$description\n" while $sthNewItems->fetch;
+}
+
+sub fetch {
+    my ($url, $title, $description, $date, $feedTitle);
+
+    my $sthNewItems   = $dbh->prepare($sql{GetItems});
+    my $sthUpdateItem = $dbh->prepare($sql{MakeOld});
+    $sthNewItems->execute;
+    $sthNewItems->bind_columns(\$url, \$title, \$description, \$date, \$feedTitle);
+    while ($sthNewItems->fetch) {
+        say $title;
+        $sthUpdateItem->execute($url, $url, '') if downloadFile($url, {Continue => 1});
+    }
+}
+
+sub makeold {
+    my @words = @_;
+    @words = ('') if scalar @words == 0;
+
+    my $sthCatchUp = $dbh->prepare($sql{MakeOld});
+    $sthCatchUp->execute($_, $_, $_) foreach @words;
+}
+
+################################################################################
+# Main
+################################################################################
+
+sub main {
+    my $opt = {
+        d => cwd,
+        f => glob('~/.podcasts_db'),
+    };
+    $Getopt::Std::STANDARD_HELP_VERSION = 1;
+    getopts('d:f:', $opt) || pod2usage();
+
+    chdir $opt->{d} or die "Can't cd to directory $opt->{d}: $!\n";
+
+    my $op = shift @ARGV || '';
+    startup($opt->{f});
+    for ($op) {
+        if    (/^initdb$/)  { initdb()          }
+        elsif (/^add$/)     { add(@ARGV)        }
+        elsif (/^feeds$/)   { feeds()           }
+        elsif (/^update$/)  { update()          }
+        elsif (/^list$/)    { list()            }
+        elsif (/^fetch$/)   { fetch()           }
+        elsif (/^makeold$/) { makeold(@ARGV)    }
+        elsif (/^$/)        { update(); fetch() }
+        else                { pod2usage();      }
+    }
+    cleanup();
+}
+
+our $VERSION = 0.30;
+
+sub HELP_MESSAGE {
+    pod2usage(-verbose => 2);
+}
+
+main;
+
+__END__
+
+=head1 NAME
+
+podcasts - A script to download podcasts.
+
+=head1 SYNOPSIS
+
+B<podcasts> [B<-f> I<database_file>] [B<-d> I<directory>] [I<command>]
+
+B<podcasts> [B<--help> | B<--version>]
+
+=head1 DESCRIPTION
+
+The script can manage, and download episodes from, several podcasts.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-f> I<database_file>
+
+The location of the database file. Defaults to F<~/.podcasts_db>.
+
+=item B<-d> I<directory>
+
+The destination directory of the downloaded episodes. Defaults to th current folder.
+
+=back
+
+=head1 COMMANDS
+
+Running B<podcasts> without arguments is equivalent to running
+
+    podcasts update; podcasts fetch
+
+=over
+
+=item B<initdb>
+
+Creates an empty database file.
+
+=item B<add> I<URL> I<...>
+
+Adds one or several podcast[s] to the database given their feed URLs.
+
+=item B<feeds>
+
+Lists the feeds in the database, giving their title, URL, and description.
+
+=item B<update>
+
+Updates the podcasts' feeds.
+
+=item B<list>
+
+Lists new episodes from all feeds.
+
+=item B<fetch>
+
+Downloads new episodes from all feeds.
+
+=item B<makeold> I<word> I<...>
+
+=item B<makeold>
+
+Marks as old all episodes mayching any of the keywords. The matching is done against
+the episodes' URL and title.
+
+B<makeold> without keyword marks all episodes as old.
+
+=back
+
+=head1 DEPENDENCIES
+
+The script uses the non-core modules L<XML::Simple>, L<DBI>, and L<DBD::SQLite>.
+
+The script uses B<curl> to download feeds andcontent.
+
+=head1 FILES
+
+=over
+
+=item F<~/.podcasts_db>
+
+The database file containing feed and episode data.
+
+=back
+
+=head1 AUTHOR
+
+Ihab Hussein <ihab@ihabhussein.com>.
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010--2015, Ihab Hussein <ihab@ihabhussein.com>. All rights reserved.
+
+This script is free software; you can redistribute it and/or modify it under the
+same terms as Perl itself.
+
+=cut
+
+__DATA__
+
+-- StartUp
+PRAGMA foreign_keys = ON;
+----
+
+-- CreateFeeds
+CREATE TABLE feeds (
+    url text NOT NULL PRIMARY KEY,
+    title text,
+    description text
+);
+----
+
+-- AddFeed
+INSERT INTO feeds (url, title, description)
+VALUES (?, ?, ?);
+----
+
+-- GetFeeds
+SELECT url, title, description
+  FROM feeds
+ ORDER BY title;
+----
+
+-- CreateItems
+CREATE TABLE items (
+    url text NOT NULL PRIMARY KEY,
+    feedurl test REFERENCES feeds(url),
+    title text,
+    pubdate date,
+    new int DEFAULT 1,
+    description text
+);
+----
+
+-- AddItem
+INSERT INTO items (url, feedurl, title, pubdate, description)
+VALUES (?, ?, ?, ?, ?);
+----
+
+-- GetItems
+SELECT i.url, i.title, i.description, i.pubdate, f.title AS feedTitle
+  FROM items AS i INNER JOIN
+       feeds AS f ON i.feedurl = f.url
+ WHERE i.new = 1
+ ORDER BY i.pubdate;
+----
+
+-- MakeOld
+UPDATE items
+   SET new = 0
+ WHERE url = ? OR (? = '' AND title LIKE '%' || ? || '%');
+----
+
+-- CleanUp
+VACUUM;
+----

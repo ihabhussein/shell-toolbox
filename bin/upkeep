@@ -1,0 +1,46 @@
+#!/bin/sh
+
+case $(uname) in
+Darwin)
+    command -v port > /dev/null && (
+        port selfupdate
+        port clean -f --all outdated 2> /dev/null
+        port upgrade -Rup outdated
+    )
+    command -v brew > /dev/null && (
+        brew update
+        brew upgrade
+        brew cleanup
+    )
+    ;;
+
+FreeBSD)
+    freebsd-update fetch install
+    portsnap fetch
+    [ -f /usr/ports/INDEX-11 ] && portsnap update || portsnap extract
+    pkg update
+    pkg upgrade -y
+    pkg audit -F
+    ;;
+
+Linux)
+    command -v apt-get > /dev/null && (
+        apt-get -y update
+        apt-get -y upgrade
+        apt-get -y dist-upgrade
+        apt-get -y autoremove
+    )
+    ;;
+esac
+
+# TeXLive
+command -v tlmgr > /dev/null && (
+   tlmgr update --self --all
+)
+
+# Let's Encrypt
+command -v certbot > /dev/null && (
+    service nginx status > /dev/null && service nginx stop
+    certbot renew
+    service nginx status > /dev/null && service nginx start
+)

@@ -1,0 +1,36 @@
+#!/bin/sh
+
+VERSION=0.1
+USAGE="Usage:
+    $0 [-d]
+    $0 [--help | --version]"
+
+
+while getopts ':d' option; do
+    case $option in
+    d)  DELETE_DIR=1 ;;
+    \?) long_option=$(eval "echo \$$OPTIND")
+        case $long_option in
+        --help)    echo "$USAGE" ;;
+        --version) echo "$VERSION" ;;
+        *)         echo Unknown -$OPTARG ;;
+        esac
+        exit ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+
+pg_isready > /dev/null || exit
+datadir="$(psql -U postgres -AtXc 'SHOW data_directory')"
+pg_ctl -m fast -D "$datadir" -U postgres stop
+
+if [ -n "$DELETE_DIR" ]; then
+    printf "Deleting %s\n" $datadir
+    rm -r "$datadir"
+    datadir=$(dirname "$datadir")
+    if [ -n "$(find "$datadir" -depth 0 -empty)" ]; then
+        printf "Deleting %s\n" $datadir
+        rm -d "$datadir"
+    fi
+fi

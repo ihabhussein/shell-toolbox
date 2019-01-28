@@ -1,0 +1,63 @@
+#!/bin/sh
+
+: ${limit_rate}
+: ${sd}
+
+################################################################################
+#                                                                              #
+# Nothing to change below this.                                                #
+#                                                                              #
+################################################################################
+
+ _youtube_dl() {
+     local url=$1
+     local opts="-i --youtube-skip-dash-manifest"
+     [ -n "$limit_rate" ] && opts="$opts -r $limit_rate"
+     case "$url" in
+          *youtube*) opts="$opts ${sd:+-f 18}" ;;
+         *youtu.be*) opts="$opts ${sd:+-f 18}" ;;
+            *vimeo*) opts="$opts ${sd:+-f http-360p}" ;;
+     esac
+     youtube-dl $opts "$1"
+ }
+
+_curl() {
+    local u=${1//\\/}
+    local opts="-L -O -C - ${limit_rate:+--limit-rate $limit_rate}"
+    echo "[download] $u"
+    curl $opts "$u"
+}
+
+_download() {
+    local url=$1
+    url=${url## }  # remove leading spaces
+    url=${url%%#*} # Remove comments
+    url=${url%% }  # Remove trailing spaces
+    case "$url" in
+                '') ;;
+     *youtube.com*) _youtube_dl "$url" ;;
+        *youtu.be*) _youtube_dl "$url" ;;
+       *vimeo.com*) _youtube_dl "$url" ;;
+   *.dailymotion.*) _youtube_dl "$url" ;;
+       *.imdb.com*) _youtube_dl "$url" ;;
+    *facebook.com*) _youtube_dl "$url" ;;
+  *ted.com/talks/*) _youtube_dl "$url" ;;
+      *c-span.org*) _youtube_dl "$url" ;;
+  *soundcloud.com*) _youtube_dl "$url" ;;
+        *rigb.org*) _youtube_dl "$url" ;;
+     *cbsnews.com*) _youtube_dl "$url" ;;
+             http*) _curl       "$url" ;;
+                 *) echo "Unknown URL: $url" ;;
+    esac
+}
+
+
+if [ $# -gt 0 ]; then
+    for url; do
+        [ -f "$url" ] && "$0" < "$url" || _download $url
+    done
+else
+    while read url; do
+        _download $url
+    done
+fi

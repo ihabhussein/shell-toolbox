@@ -1,0 +1,238 @@
+#!/usr/bin/env perl
+
+use 5.024;
+use strict;
+use warnings;
+
+use Cwd;
+use Getopt::Std;
+use Pod::Usage;
+use JSON::PP;
+use Net::Netrc;
+
+################################################################################
+#
+# Git histing providers
+#
+################################################################################
+
+our $verbose;
+
+sub bitbucket {
+    my ($login, $dirs) = @_;
+    Net::Netrc->lookup('api.bitbucket.org', $login) || return;
+
+    my $url = "https://api.bitbucket.org/2.0/repositories/$login";
+    while ($url) {
+        my $content = `curl -n '$url'`;
+        $content = decode_json $content;
+        for my $repo (@{$content->{values}}) {
+            gitbackup($dirs, map {$_->{href}} @{$repo->{links}{clone}});
+        };
+        $url = $content->{next_page_url}; # TODO: paginated results
+    }
+}
+
+sub github {
+    my ($login, $dirs) = @_;
+    Net::Netrc->lookup('api.github.com', $login) || return;
+
+    my $url = "https://api.github.com/users/$login/repos";
+    while ($url) {
+        my $content = `curl -n '$url'`;
+        $content = decode_json $content;
+        for my $repo (@{$content}) {
+            gitbackup($dirs, @{$repo}{qw/ssh_url clone_url/});
+        };
+        undef $url; # TODO: paginated results
+    }
+
+    my $token = `git config --get github.gist.oauth.token` or return;
+    $url = 'https://api.github.com/gists';
+    my $page = 1;
+    while (1) {
+        my $content = `curl -H "Authorization: token $token" "$url?page=$page"`;
+        $content = decode_json $content;
+        last unless scalar @{$content};
+        for my $repo (@{$content}) {
+            gitbackup($dirs, $repo->{git_pull_url});
+        }
+        $page++;
+    }
+}
+
+sub gitlab {
+    my ($login, $dirs) = @_;
+    my $info = Net::Netrc->lookup('gitlab.com', $login) || return;
+
+    my $url = "https://$login\@gitlab.com/api/v4/projects?owned=true&private_token=" . $info->password;
+    while ($url) {
+        my $content = `curl '$url'`;
+        $content = decode_json $content;
+        for my $repo (@{$content}) {
+            gitbackup($dirs, $repo->{ssh_url_to_repo}, $repo->{http_url_to_repo});
+            if ($repo->{wiki_enabled}) {
+                $repo->{ssh_url_to_repo}  =~ s/\.git$/.wiki.git/;
+                $repo->{http_url_to_repo} =~ s/\.git$/.wiki.git/;
+                gitbackup($dirs, $repo->{ssh_url_to_repo}, $repo->{http_url_to_repo});
+            }
+        }
+        undef $url; # TODO: paginated results
+    }
+}
+
+################################################################################
+
+sub scandirectory {
+    my ($dir, $dirs) = @_;
+
+    my @url = split "\n",
+        `GIT_DIR="$dir" git remote -v 2> /dev/null | grep fetch | cut -f 2 | sed -e 's/ .*//'`
+        || '';
+    if (@url) {
+        $dirs->{$_} = $dir for @url;
+    } else {
+        opendir my $dh, $dir || die "Can't open $dir: $!\n";
+        my @entries = grep { /^[^.]/ && -d "$dir/$_" } readdir $dh;
+        closedir $dh;
+        scandirectory("$dir/$_", $dirs) for @entries;
+    }
+    return;
+}
+
+sub gitbackup {
+    my ($dirs, @remotes) = @_;
+
+    # If the repo is already cloned locally fetch it
+    for (@remotes) {
+        if (exists $dirs->{$_}) {
+            print $dirs->{$_}, "\n";
+            system qq(GIT_DIR="$dirs->{$_}" git remote update);
+            print "\n";
+            return;
+        }
+    }
+
+    # If we get here, the repo doesn't exist locally
+    # Try to pick a URL to clone.
+    my $url =
+        (grep { m{^[^:]+@[^:]+:} } @remotes)[0] || # prefer ssh
+        (grep { m{^https?:}      } @remotes)[0] || # then http[s]
+        $remotes[0];                               # or use the first URL we have
+
+    print "$url\n";
+    system qq(cd "$dirs->{''}" && git clone --mirror $url);
+    print "\n";
+    return;
+}
+
+sub main {
+    my $opt = {
+        d => cwd,              # destination
+        u => (getpwuid $<)[0], # username
+    };
+    $Getopt::Std::STANDARD_HELP_VERSION = 1;
+    getopts('d:u:', $opt) || pod2usage();
+
+    die "$opt->{d} is not a directory\n" unless -d $opt->{d};
+
+    my $dirs = {'' => $opt->{d}};
+    scandirectory($opt->{d}, $dirs);
+
+    bitbucket($opt->{u}, $dirs);
+    github($opt->{u}, $dirs);
+    gitlab($opt->{u}, $dirs);
+    return;
+}
+
+our $VERSION = 0.30;
+
+sub HELP_MESSAGE {
+    pod2usage(-verbose => 2);
+}
+
+main;
+
+__END__
+
+=head1 NAME
+
+gitbackup - A script to mirror B<git> repositories from L<BitBucket.org>,
+L<GitHub.com>, and L<GitLab.com>.
+
+=head1 SYNOPSIS
+
+B<gitbackup> [B<-d> I<DIR_NAME>] [B<-u> I<USER_NAME>]
+
+B<gitbackup> [B<--help> | B<--version>]
+
+=head1 DESCRIPTION
+
+The script starts by scanning I<DIR_NAME> for existing B<git> repositories. It then calls
+the servers' API to get a list of repositores owned by I<USER_NAME>. Repositories that are
+found in I<DIR_NAME> are fetched, while the ones not found locally are cloned as bare
+repositories.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-d> I<DIR_NAME>
+
+is the directory to fetch or clone the repositories into. Defaults to the current directory.
+
+=item B<-u> I<USER_NAME>
+
+is the user name that owns the repositories on L<BitBucket.org>, L<GitHub.com>,
+and L<GitLab.com>.
+Defaults to the current user name.
+The password corresponding to this user name is stored in the F<~/.netrc> file.
+
+=back
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The servers' API credentials (user_name/password) need to be stored in F<~/.netrc>.
+The format for ths file is something like the following:
+
+    machine api.bitbucket.org login XXXXXXXX password YYYYYYYY
+    machine    api.github.com login XXXXXXXX password YYYYYYYY
+    machine        gitlab.com login XXXXXXXX password YYYYYYYY
+
+with I<XXXXXXXX> and I<YYYYYYYY> replaced with the actuals username and password.
+In case of gitlab.com, use the account's private token instead of the password.
+For more information check your system's documentation.
+
+The credentials in F<~/.netrc> also serve when cloning or fetching using C<HTTP[S]>.
+If the repositories are accessed using the C<SSH> protocol, private keys are
+needed to be installed in F<~/.ssh/> and corresponding public keys uploaded to
+the servers. For more information, check the documentation pages at
+L<https://confluence.atlassian.com/display/BITBUCKET/Set+up+SSH+for+Git>,
+L<https://help.github.com/articles/generating-ssh-keys/>, and
+L<https://docs.gitlab.com/ce/gitlab-basics/create-your-ssh-keys.html>.
+
+=head1 DEPENDENCIES
+
+The script requires B<perl>, B<curl>, and B<git> to be installed and available in
+the C<$PATH>.
+
+=head1 BUGS AND LIMITATIONS
+
+The script currently doesn't handle paged results from API.
+
+=head1 AUTHOR
+
+Ihab Hussein <ihab@ihabhussein.com>.
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (c) 2013--2015, Ihab Hussein <ihab@ihabhussein.com>. All rights reserved.
+
+This script is free software; you can redistribute it and/or modify it under the
+same terms as Perl itself.
+
+=head1 SEE ALSO
+
+L<git>, L<curl>, L<Net::Netrc>.
+
+=cut

@@ -1,0 +1,45 @@
+#!/bin/sh
+
+write_manifests() {
+    local target="$(clouddir $backup_target)"
+    [ -n "$opt_v" ] && echo Writing manifests to $target
+
+    for d in \
+        $backup_0/Audio/* \
+        $backup_0/Documents/* \
+        $backup_0/Video/* \
+    ; do
+        mkdir -p "$(dirname "$target/$d")"
+        [ -d "$d" ] && (
+            [ -n "$opt_v" ] && echo "\t$d"
+            manifest $backup_manifest_opts "$d" > "$target/$d.txt"
+        )
+    done
+}
+
+mirror_disks() {
+    for i in $(seq 0 $(($backup_last-1))); do
+        eval "src=\$backup_$i"
+        for j in $(seq $(($i+1)) $backup_last); do
+            eval "dest=\$backup_$j"
+            for d in Attic Audio Documents Video; do
+                mirrordir ${opt_v:+-v} $src/$d/ $dest/$d
+            done
+        done
+    done
+}
+
+[ -r "$HOME/.backuprc" ] && source "$HOME/.backuprc"
+while getopts ':mgv' option; do
+    case $option in
+    m) opt_m=1 ;;
+    g) opt_g=1 ;;
+    v) opt_v=1 ;;
+    *) echo "Usage:\n\t$0 [-m] [-g] [-v]"; exit ;;
+    esac
+done
+
+[ -n "$opt_m" ] && write_manifests
+[ -n "$opt_g" ] && gitbackup -u $backup_git_user -d $backup_0/_/Projects
+mirrordir ${opt_v+-v} $HOME/ $backup_0/_/$USER
+mirror_disks

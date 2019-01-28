@@ -1,0 +1,39 @@
+#!/bin/sh
+
+: ${rsync_opts:=-a --partial --delete --delete-excluded -F --modify-window=2}
+
+################################################################################
+
+valid_place() {
+    local name="$1"
+
+    case "$name" in
+    *:*)
+        # Paths containing a colon are remote paths, presumably of the form
+        # host:path or login@host:path
+        # Let's extract the host name and see if it is reachable
+        local host=${name%:*}
+        ping -t 1 "${host#*@}" > /dev/null 2>&1 || exit 1
+
+        # If host is reachable, then see if the target is a directory
+        local dir=${name#*:}
+        ssh "$host" [ -d "$dir" ] || exit 1 ;;
+    *)
+        # Otherwise, it is a local path. Check for existence.
+        [ -d "$name" ] || exit 2 ;;
+    esac
+}
+
+
+while getopts ':v' option; do
+    case $option in
+    v) opt_v=1 ;;
+    *) echo "Usage:\n\t$0 [-v] SOURCE DESTINATION EXCLUDE"; exit ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+valid_place "$1"
+valid_place "$2"
+[ -n "$opt_v" ] && echo $1 '=>' $2
+echo "$3" | rsync $rsync_opts ${opt_v+--verbose} "$1" "$2"

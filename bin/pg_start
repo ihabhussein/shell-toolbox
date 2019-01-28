@@ -1,0 +1,27 @@
+#!/bin/sh
+
+datadir="${1-$(pwd)}/.local/postgresql"
+
+[ -d "$datadir" ] || (
+    mkdir -p "$datadir"
+    initdb -D "$datadir" -A trust -E UTF8 -U postgres
+)
+
+pg_isready >/dev/null || pg_ctl -w -D "$datadir" -l "$datadir/postgresql.log" start
+
+createuser -U postgres -l -d $USER 2> /dev/null
+createdb -U $USER $USER 2> /dev/null
+
+schemas=$(psql -XtAc "
+    SELECT string_agg(nspname, ',')
+      FROM pg_catalog.pg_namespace
+     WHERE NOT nspname LIKE 'pg_%' AND nspname <> 'information_schema'
+")
+psql -U postgres -d $USER -X > /dev/null 2>&1 <<EOSQL
+GRANT ALL PRIVILEGES                  ON SCHEMA $schemas TO $USER;
+GRANT ALL PRIVILEGES ON ALL TABLES    IN SCHEMA $schemas TO $USER;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA $schemas TO $USER;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA $schemas TO $USER;
+EOSQL
+
+psql -U postgres -AtXc "SHOW data_directory"
