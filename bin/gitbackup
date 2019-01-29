@@ -37,7 +37,7 @@ sub github {
     my ($login, $dirs) = @_;
     Net::Netrc->lookup('api.github.com', $login) || return;
 
-    my $url = "https://api.github.com/users/$login/repos";
+    my $url = "https://api.github.com/user/repos";
     while ($url) {
         my $content = `curl -n '$url'`;
         $content = decode_json $content;
