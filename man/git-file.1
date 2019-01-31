@@ -1,0 +1,14 @@
+NAME
+    git-file
+
+SYNOPSIS
+    git-file provider repo:file[@rev]
+
+DESCRIPTION
+    A script to download a single file from a hosted git repo. Supported
+    providers are github, bitbucket, and gitlab
+
+    Examples:
+        git-file github ihabhussein/datepicker:datepicker.js
+        git-file github ihabhussein/datepicker:datepicker.js@master
+        git-file github ihabhussein/datepicker:datepicker.js@e51d6d0c8c

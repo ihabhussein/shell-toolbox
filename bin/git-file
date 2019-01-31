@@ -1,0 +1,39 @@
+#!/bin/sh
+
+if [ $# -eq 2 ]; then
+    provider=$1
+    repo=${2%:*}
+    file=${2#*:}
+
+    case $file in
+    *@*)    tree=${file#*[@]}; file=${file%[@]*} ;;
+    *)      tree='master' ;;
+    esac
+
+    case $provider in
+    github)     url="https://raw.githubusercontent.com/$repo/$tree/$file" ;;
+    bitbucket)  url="https://bitbucket.org/$repo/raw/$tree/$file" ;;
+    gitlab)     url="https://gitlab.com/$repo/raw/$tree/$file" ;;
+    *)          printf 'Unknown provider: %s\n' "$provider"; exit 1 ;;
+    esac
+    curl -sLO "$url"
+else
+    echo "Usage:\n    $0 provider repo:file[@rev]"
+    exit 1
+fi
+
+:<<HELP_TEXT ###################################################################
+NAME
+    __CMD__
+
+SYNOPSIS
+    __CMD__ provider repo:file[@rev]
+
+DESCRIPTION
+    A script to download a single file from a hosted git repo. Supported
+    providers are github, bitbucket, and gitlab
+
+    Examples:
+        __CMD__ github ihabhussein/datepicker:datepicker.js
+        __CMD__ github ihabhussein/datepicker:datepicker.js@master
+        __CMD__ github ihabhussein/datepicker:datepicker.js@e51d6d0c8c
