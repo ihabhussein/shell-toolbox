@@ -1,0 +1,50 @@
+.Dd today
+.Os Local Scripts
+.Dt logging 1 LOCAL
+.Sh NAME
+.Nm logging
+.Nd shell script logging routines
+.Sh SYNOPSIS
+    . logging
+    setup_logging /path/to/log/file
+    # or
+    setup_logging syslog [logger_options]
+q.Fl l
+.Nm
+.Op Fl y
+.Ao Ar pattern Ac
+.Sh DESCRIPTION
+The
+.Nm
+script is a wrapper script to macOS's pkgutil to list and unistall installed
+packages.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl l
+List installed packages
+.It Fl y
+Confirm uninstalling packages
+.El
+.\" .Sh ENVIRONMENT
+.\" .Sh FILES
+.\" .Sh EXAMPLES
+.\" .Sh DIAGNOSTICS
+.\" .Sh COMPATIBILITY
+.Sh SEE ALSO
+.Xr pkgutil 1
+.\" .Sh STANDARDS
+.\" .Sh HISTORY
+.Sh AUTHORS
+.An Ihab Hussein Aq ihab@ihabhussein.com
+.\" .Sh BUGS
+
+
+
+    ...
+
+    teardown_logging
+
+DESCRIPTION
+    A script to collect STDOUT and STDERR and send them either to syslog or a
+    log file.

@@ -1,0 +1,72 @@
+#!/bin/false
+
+NormalText="\033[0m"
+
+BlackFG="\033[30m"
+RedFG="\033[31m"
+GreenFG="\033[32m"
+YellowFG="\033[33m"
+BlueFG="\033[34m"
+MagentaFG="\033[35m"
+CyanFG="\033[36m"
+WhiteFG="\033[37m"
+BrightBlackFG="\033[90m"
+BrightRedFG="\033[91m"
+BrightGreenFG="\033[92m"
+BrightYellowFG="\033[93m"
+BrightBlueFG="\033[94m"
+BrightMagentaFG="\033[95m"
+BrightCyanFG="\033[96m"
+BrightWhiteFG="\033[97m"
+
+BlackBG="\033[40m"
+RedBG="\033[41m"
+GreenBG="\033[42m"
+YellowBG="\033[43m"
+BlueBG="\033[44m"
+MagentaBG="\033[45m"
+CyanBG="\033[46m"
+WhiteBG="\033[47m"
+BrightBlackBG="\033[100m"
+BrightRedBG="\033[101m"
+BrightGreenBG="\033[102m"
+BrightYellowBG="\033[103m"
+BrightBlueBG="\033[104m"
+BrightMagentaBG="\033[105m"
+BrightCyanBG="\033[106m"
+BrightWhiteBG="\033[107m"
+
+_error()   { tput setaf 1; printf 'ERROR: %s\n'   "$*"; tput op; }
+_success() { tput setaf 2; printf 'OK: %s\n'      "$*"; tput op; }
+_warning() { tput setaf 3; printf 'WARNING: %s\n' "$*"; tput op; }
+
+return >/dev/null 2>&1
+
+:<<HELP_TEXT ###################################################################
+NAME
+    __CMD__
+
+SYNOPSIS
+    . __CMD__
+    _error error message
+    _success success message
+    _warning warning message
+    printf "${RedFG}This"
+    printf "${GreenFG}${BrightWhiteBG}is a"
+    printf "${NormalText}${BrightCyanFG} test!"
+    printf "${NormalText}\n"
+
+DESCRIPTION
+    The follwing color-related costants will be available after sourcing the
+    script:
+
+        BlackFG         BrightBlackFG       BlackBG         BrightBlackBG
+        RedFG           BrightRedFG         RedBG           BrightRedBG
+        GreenFG         BrightGreenFG       GreenBG         BrightGreenBG
+        YellowFG        BrightYellowFG      YellowBG        BrightYellowBG
+        BlueFG          BrightBlueFG        BlueBG          BrightBlueBG
+        MagentaFG       BrightMagentaFG     MagentaBG       BrightMagentaBG
+        CyanFG          BrightCyanFG        CyanBG          BrightCyanBG
+        WhiteFG         BrightWhiteFG       WhiteBG         BrightWhiteBG
+
+        NormalText

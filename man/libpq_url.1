@@ -1,0 +1,17 @@
+.Dd today
+.Os Local Scripts
+.Dt libpq_url 1 LOCAL
+.Sh NAME
+.Nm libpq_url
+.Nd parse_libpq_url $DATABASE_URL
+.Sh SYNOPSIS
+\&. libpq_url
+.Pp
+parse_libpq_url
+.Ar url
+.Sh DESCRIPTION
+A script to parse PostgreSQL database urls into PG* environment variables. See:
+<https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING>
+.Sh EXAMPLES
+.Bd -literal -file __TESTS__
+.Ed

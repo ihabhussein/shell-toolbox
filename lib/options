@@ -1,0 +1,60 @@
+#!/bin/false
+
+_usage() {
+    printf '%s\n' "${usage-Help not available!}"
+    exit 0
+}
+_version() {
+    local cmd=$(basename -- $0)
+    printf '%s v%s\n' "$cmd" "${version-(unknown version)}"
+    exit 0
+}
+
+while getopts ':f' option; do  # FIXME optstring
+    case $option in
+    \?)
+        long_option=$(eval "printf '%s' \"\$$OPTIND\"")
+        case $long_option in
+        --help)     _usage ;;
+        --version)  _version ;;
+        *)          printf 'Unknown option -%s\n' "$OPTARG"
+                    exit 1 ;;
+        esac ;;
+    \:)
+        printf 'Missing argument for -%s\n' "$OPTARG"
+        exit 1 ;;
+    f)
+        # Format seletion
+        case "$OPTARG" in
+        p|plain)    format=plain; extension=sql ;;
+        c|custom)   format=custom; extension=dump ;;
+        *)          printf 'Unknown format: %s\n' "$OPTARG"
+                    exit 1 ;;
+        esac ;;
+    *)
+        printf 'Unknow option %s\n' "$option"
+        exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+
+: <<EOT
+
+Usage:
+    getopts optstring name
+
+If the first character in optstring is a <colon> ( ':' )
+
+Input                                   name    OPTARG
+--------------------------------------------------------------------------------
+Option not contained in optstring       ?       character found
+Option argument is missing              :       character found
+
+
+otherwise,
+
+Input                                   name    OPTARG
+--------------------------------------------------------------------------------
+Option not contained in optstring       ?       unset
+Option argument is missing              ?       unset

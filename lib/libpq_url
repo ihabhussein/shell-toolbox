@@ -1,0 +1,71 @@
+#!/bin/false
+
+parse_libpq_url() {
+    local user_pass_host_port=$(expr "$1" : '.*://\([^/]*\)')
+    local database_parameters=$(expr "$1" : '.*://[^/]*/\(.*\)')
+
+    # Credentials
+    local user_pass=
+    if [ $(expr "$user_pass_host_port" : '.*@') != '0' ]; then
+        user_pass=${user_pass_host_port%@*}
+    fi
+    export PGUSER=$(expr     "$user_pass" : '\([^:]*\)')
+    export PGPASSWORD=$(expr "$user_pass" : '.*:\(.*\)')
+
+    # Host component
+    local host_port=${user_pass_host_port#*@}
+    case "$host_port" in
+    [*) # IPv6 address
+        export PGHOST=$(expr "$host_port" : '\(.*]\)')
+        export PGPORT=$(expr "$host_port" : '.*]:\(.*\)')
+        ;;
+    %2[Ff]*) # UNIX-domain socket path
+        export PGHOST=$(echo "$host_port" | sed -E "s|%2[Ff]|/|g")
+        export PGPORT=
+        ;;
+    *) # Otherwise (hostname or IPv4 address)
+        export PGHOST=$(expr "$host_port" : '\([^:]*\)')
+        export PGPORT=$(expr "$host_port" : '.*:\(.*\)')
+        ;;
+    esac
+
+    # Database and parameters
+    local host=$PGHOST
+    local port=$PGPORT
+    export PGDATABASE=${database_parameters%%\?*}
+    database_parameters=$(echo "$database_parameters" | sed -E "s/^[^?]+\??//; s/&/;/g")
+
+    case "$database_parameters" in *'host='*)
+        export PGHOST=$(expr "$database_parameters" : '.*host=\([^;]*\)')
+        database_parameters=$(echo "$database_parameters" | sed -E 's/host=([^;]*)//')
+        ;;
+    esac
+    case "$database_parameters" in *'port='*)
+        export PGPORT=$(expr "$database_parameters" : '.*port=\([^;]*\)')
+        database_parameters=$(echo "$database_parameters" | sed -E 's/port=([^;]*)//')
+        ;;
+    esac
+    database_parameters=$(echo "$database_parameters" | sed -E 's/;+/;/; s/^;//')
+    export PGPARAMS="$database_parameters"
+}
+
+return >/dev/null 2>&1
+
+:<<HELP_TEXT ###################################################################
+.Dd today
+.Os Local Scripts
+.Dt __CMD__ 1 LOCAL
+.Sh NAME
+.Nm __CMD__
+.Nd parse_libpq_url $DATABASE_URL
+.Sh SYNOPSIS
+\&. __CMD__
+.Pp
+parse_libpq_url
+.Ar url
+.Sh DESCRIPTION
+A script to parse PostgreSQL database urls into PG* environment variables. See:
+<https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING>
+.Sh EXAMPLES
+.Bd -literal -file __TESTS__
+.Ed

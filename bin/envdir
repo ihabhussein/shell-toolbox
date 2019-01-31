@@ -1,0 +1,53 @@
+#!/bin/sh
+
+if [ -d "$1" ]; then
+    for f in "$1"/*; do
+        [ -f "$f" ] || continue
+        k=$(basename -- "$f")
+        if [ -s "$f" ]; then
+            v=$(<"$f" tr "$'\000'" "$'\377'" | head -n 1 | sed -E 's/[[:space:]]*$//' | tr "$'\377'" "\n")
+            $k="$v"
+        else
+            $k=
+        fi
+        export $k
+    done
+elif [ -f "$1" ]; then
+    . "$1"
+else
+    cmd=$(basename -- $0)
+    [ -t 1 ] && output="| ${PAGER-more}"
+    eval "sed '1,/<< *HELP_TEXT/d; s/__CMD__/$cmd/g' < '$0' $output"
+    exit 1
+fi
+shift
+
+if [ "$#" -eq 0 ]; then
+    export -p
+else
+    exec "$@"
+fi
+
+:<<HELP_TEXT ###################################################################
+NAME
+    __CMD__
+
+SYNOPSIS
+    __CMD__ d child
+
+DESCRIPTION
+    A script that emulates daemontools' envdir command
+    <http://cr.yp.to/daemontools/envdir.html>
+
+    d is a single argument. child consists of one or more arguments.
+
+    envdir sources the file named d, or sets various environment variables as
+    specified by files in the directory named d. It then runs child.
+
+    If d contains a file named s whose first line is t, envdir adds an
+    environment variable named s with value t. The name s must not contain =.
+    Spaces and tabs at the end of t are removed. Nulls in t are changed to
+    newlines in the environment variable.
+
+    If the file s is completely empty (0 bytes long), envdir removes an
+    environment variable named s if one exists, without adding a new variable.

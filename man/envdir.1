@@ -1,0 +1,22 @@
+NAME
+    envdir
+
+SYNOPSIS
+    envdir d child
+
+DESCRIPTION
+    A script that emulates daemontools' envdir command
+    <http://cr.yp.to/daemontools/envdir.html>
+
+    d is a single argument. child consists of one or more arguments.
+
+    envdir sources the file named d, or sets various environment variables as
+    specified by files in the directory named d. It then runs child.
+
+    If d contains a file named s whose first line is t, envdir adds an
+    environment variable named s with value t. The name s must not contain =.
+    Spaces and tabs at the end of t are removed. Nulls in t are changed to
+    newlines in the environment variable.
+
+    If the file s is completely empty (0 bytes long), envdir removes an
+    environment variable named s if one exists, without adding a new variable.

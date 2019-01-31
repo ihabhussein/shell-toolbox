@@ -1,0 +1,82 @@
+#!/bin/false
+
+logger_pid=
+logger_pipe=
+
+setup_logging() {
+    [ $# -gte 1 ] || return
+    local target=$1; shift
+
+    logger_pipe="${TMPDIR}$(basename -- $0).$$.pipe"
+    [ -p $logger_pipe ] || mkfifo $logger_pipe
+
+    if [ "$target" = 'syslog' ]; then
+        logger "$@" < $logger_pipe &
+    else
+        tee -a $target < $logger_pipe &
+    fi
+    logger_pid=$!
+    exec 3>&1 4>&2 >$logger_pipe 2>&1
+}
+
+teardown_logging() {
+    if [ -n "$logger_pid" ]; then
+        exec 1>&3 3>&- 2>&4 4>&-
+        wait $logger_pid
+        rm -f $logger_pipe
+    fi
+}
+
+return >/dev/null 2>&1
+
+:<<HELP_TEXT ###################################################################
+.Dd today
+.Os Local Scripts
+.Dt __CMD__ 1 LOCAL
+.Sh NAME
+.Nm __CMD__
+.Nd shell script logging routines
+.Sh SYNOPSIS
+    . logging
+    setup_logging /path/to/log/file
+    # or
+    setup_logging syslog [logger_options]
+q.Fl l
+.Nm
+.Op Fl y
+.Ao Ar pattern Ac
+.Sh DESCRIPTION
+The
+.Nm
+script is a wrapper script to macOS's pkgutil to list and unistall installed
+packages.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl l
+List installed packages
+.It Fl y
+Confirm uninstalling packages
+.El
+.\" .Sh ENVIRONMENT
+.\" .Sh FILES
+.\" .Sh EXAMPLES
+.\" .Sh DIAGNOSTICS
+.\" .Sh COMPATIBILITY
+.Sh SEE ALSO
+.Xr pkgutil 1
+.\" .Sh STANDARDS
+.\" .Sh HISTORY
+.Sh AUTHORS
+.An Ihab Hussein Aq ihab@ihabhussein.com
+.\" .Sh BUGS
+
+
+
+    ...
+
+    teardown_logging
+
+DESCRIPTION
+    A script to collect STDOUT and STDERR and send them either to syslog or a
+    log file.
