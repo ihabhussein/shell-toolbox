@@ -1,0 +1,36 @@
+#!/bin/sh
+
+
+_encode() {
+    local i="$1"
+    local o="${1%.*}.mp4"
+    case "$use" in
+    ffmpeg)    ffmpeg -i "$i" "$o" ;;
+    handbrake) HandBrakeCLI -i "$i" -o "$o" ;;
+    esac
+}
+
+if command -v ffmpeg 2>&1 > /dev/null; then
+    use=ffmpeg
+elif command -v HandBrakeCLI 2>&1 > /dev/null; then
+    use=handbrake
+else
+    echo "Can't determine how to encode file."
+    exit 1
+fi
+
+if [ $# -gt 0 ]; then
+    for x; do
+        if [ -d "$x" ]; then
+            find -s "$x" -name '*.webm' -or -name '*.mkv' -or -name '*.avi' | while read f; do
+                _encode "$f" < /dev/null
+            done
+        elif [ -f "$x" ]; then
+            _encode "$x" < /dev/null
+        fi
+    done
+else
+    while read x; do
+        _encode "$x" < /dev/null
+    done
+fi
