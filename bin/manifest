@@ -15,7 +15,7 @@ sub listdir ($dir = $_) {
     my %seen = ();
 
     opendir(my $dh, $dir) || die "Can't open $dir: $!";
-    while (my $d = readdir $dh) {
+    for my $d (sort readdir $dh) {
         next if $d =~ /^\./;     # Skip hidden files
         $d =~ s/\)[^)]+$/)/;     # Consolidate multi-part files, subtitles, etc
         $d =~ s/\.[^. ]{3,5}$//; # Remove file extension
@@ -30,7 +30,7 @@ sub listdir ($dir = $_) {
 sub printdir ($list, $prefix = '') {
     for my $item (@$list) {
         if (ref $item eq "HASH") {
-            printdir($item->{$_}, "$prefix$_/") for keys %$item;
+            printdir($item->{$_}, "$prefix$_/") for sort keys %$item;
         } else {
             print "$prefix$item\n";
         };
