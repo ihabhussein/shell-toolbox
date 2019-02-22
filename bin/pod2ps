@@ -1,0 +1,18 @@
+#!/bin/sh
+
+lib="${1:-./lib}"
+lib="${lib%%/}"
+
+man="${2:-./man}"
+man="${man%%/}"
+
+find -s "$lib" -name '*.pod' -o -name '*.pm' | while read f; do
+    name=$(echo "${f#$lib/}" | sed -e 's|/|::|g')
+    output=$(echo "${f#$lib/}" | sed -e 's|/|--|g')
+    tmp="$(mktemp)"
+
+    pod2man --section 3 --name "${name%.p*}" "$f" "$tmp" && \
+    man -t "$tmp" > "$man/${output%.p*}.ps"
+
+    rm "$tmp" 2>/dev/null
+done
