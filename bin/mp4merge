@@ -1,0 +1,40 @@
+#!/bin/sh
+
+temps='/tmp/mp4temp'
+
+list_files() {
+    [ -d "$1" ] || return
+    find -s "$1" -type f | sed -nE 's/[0-9]+\.mp4$//p' | uniq
+}
+
+merge_files() {
+    printf '>>> %s\n' "$1"
+    input=''
+    for f in "$1"*; do
+        [ -f "$f" ] || continue
+        printf '    %s\n' "$f"
+        n=$(echo $f | sed -E 's/.*([0-9]+)\.mp4$/\1/')
+        temp="$temps-$$-$n.ts"
+        input="$input${input:+|}$temp"
+        ffmpeg -y -i "$f" -c copy -bsf:v h264_mp4toannexb "$temp" 2> /dev/null
+    done
+    ffmpeg -y -i "concat:$input" -c copy -bsf:a aac_adtstoasc "$1.mp4"
+    rm "$temps"*
+}
+
+if [ "$1" = "-h" -o "$1" = "--help" ]; then
+    cat <<EOT; exit
+Usage:
+    $0 [-y] dir_name
+    $0 [-h|--help]
+EOT
+elif [ "$1" = "-y" ]; then
+    confirm=1; shift
+fi
+
+dir=${1:-$(pwd)}
+if [ -n "$confirm" ]; then
+    list_files "$dir" | while read title; do merge_files "$title"; done
+else
+    list_files "$dir"
+fi
