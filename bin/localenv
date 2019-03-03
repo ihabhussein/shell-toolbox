@@ -2,6 +2,7 @@
 
 # Local environment directory
 localenv="${1:-$(pwd)/.local}"
+node_modules="${a:-$(pwd)/node_modules}"
 shift
 archname=$(perl -MConfig -e 'print $Config::Config{archname}')
 mkdir -p "$localenv/bin" \
@@ -29,7 +30,7 @@ GEM_PATH="$localenv"
 export GEM_HOME GEM_PATH
 
 # Path
-PATH="$localenv/bin${PATH:+:}$PATH"
+PATH="$localenv/bin:$node_modules/.bin${PATH:+:}$PATH"
 export PATH
 
 # Start a command or new shell
