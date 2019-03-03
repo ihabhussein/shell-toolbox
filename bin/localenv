@@ -4,9 +4,8 @@
 localenv="${1:-$(pwd)/.local}"
 node_modules="${a:-$(pwd)/node_modules}"
 shift
-archname=$(perl -MConfig -e 'print $Config::Config{archname}')
 mkdir -p "$localenv/bin" \
-         "$localenv/lib/perl5/$archname" \
+         "$localenv/lib/perl5" \
          "$localenv/lib/python"
 localenv="$(cd "$localenv"; pwd)"
 export localenv
