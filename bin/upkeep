@@ -15,12 +15,16 @@ Darwin)
     ;;
 
 FreeBSD)
-    freebsd-update fetch install
-    portsnap fetch
-    [ -f /usr/ports/INDEX-11 ] && portsnap update || portsnap extract
-    pkg update
-    pkg upgrade -y
-    pkg audit -F
+    if [ "$1" = "cron" ]; then
+        freebsd-update fetch
+    else
+        freebsd-update install
+        portsnap fetch
+        [ -f /usr/ports/INDEX-11 ] && portsnap update || portsnap extract
+        pkg update
+        pkg upgrade -y
+        pkg audit -F
+    fi
     ;;
 
 Linux)
