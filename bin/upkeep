@@ -16,7 +16,7 @@ Darwin)
 
 FreeBSD)
     if [ "$1" = "cron" ]; then
-        freebsd-update fetch | grep -v skipped
+        freebsd-update fetch
     else
         freebsd-update install
         portsnap fetch
