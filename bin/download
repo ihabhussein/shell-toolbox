@@ -1,7 +1,6 @@
 #!/bin/sh
 
 : ${limit_rate}
-: ${sd}
 
 ################################################################################
 #                                                                              #
@@ -14,9 +13,9 @@
      local opts="-i --youtube-skip-dash-manifest"
      [ -n "$limit_rate" ] && opts="$opts -r $limit_rate"
      case "$url" in
-          *youtube*) opts="$opts ${sd:+-f 18}" ;;
-         *youtu.be*) opts="$opts ${sd:+-f 18}" ;;
-            *vimeo*) opts="$opts ${sd:+-f http-360p}" ;;
+          *youtube*) opts="$opts -f 18" ;;
+         *youtu.be*) opts="$opts -f 18" ;;
+            *vimeo*) opts="$opts -f http-360p" ;;
      esac
      youtube-dl $opts "$1"
  }
