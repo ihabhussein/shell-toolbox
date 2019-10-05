@@ -22,7 +22,7 @@ fi
 if [ $# -gt 0 ]; then
     for x; do
         if [ -d "$x" ]; then
-            find -s "$x" -name '*.webm' -or -name '*.mkv' -or -name '*.avi' | while read f; do
+            find -s "$x" -name '*.[Ww][Ee][Bb][Mm]' -or -name '*.[Mm][Kk][Vv]' -or -name '*.[Aa][Vv][Ii]' | while read f; do
                 _encode "$f" < /dev/null
             done
         elif [ -f "$x" ]; then
