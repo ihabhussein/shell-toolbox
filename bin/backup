@@ -20,6 +20,7 @@ write_manifests() {
 mirror_disks() {
     for i in $(seq 0 $(($backup_last-1))); do
         eval "src=\$backup_$i"
+        mirrordir ${opt_v+-v} $HOME/Pictures/ $src/Pictures
         for j in $(seq $(($i+1)) $backup_last); do
             eval "dest=\$backup_$j"
             for d in Attic Audio Documents Video; do
