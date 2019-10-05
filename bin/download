@@ -22,7 +22,7 @@
 
 _curl() {
     local u=${1//\\/}
-    local opts="-L -O -C - ${limit_rate:+--limit-rate $limit_rate}"
+    local opts="-L -OJ -C - ${limit_rate:+--limit-rate $limit_rate}"
     echo "[download] $u"
     curl $opts "$u"
 }
