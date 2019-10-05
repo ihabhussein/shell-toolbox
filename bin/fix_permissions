@@ -1,0 +1,19 @@
+#!/bin/sh
+
+while getopts ':av' option; do
+    case $option in
+    a) opt_a=1 ;;
+    v) opt_v=1 ;;
+    *) echo "Usage:\n\t$0 [-av] DIRECTORY ..."; exit ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+for dir; do
+    find "$dir" | while read name; do
+        if [ -d "$name" ]; then mode=755; else mode=644; fi
+        chmod $mode "$name"
+        [ -n "$opt_a" ] && xattr -c "$name"
+        [ -n "$opt_v" ] && echo $name
+    done
+done
