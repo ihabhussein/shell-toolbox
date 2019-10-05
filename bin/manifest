@@ -28,7 +28,10 @@ sub listdir ($dir = $_) {
 sub printdir ($list, $prefix = '') {
     for my $item (@$list) {
         if (ref $item eq "HASH") {
-            printdir($item->{$_}, "$prefix$_/") for sort keys %$item;
+            for (sort keys %$item) {
+                print "$prefix$_\n";
+                printdir($item->{$_}, "$prefix    ")
+            }
         } else {
             print "$prefix$item\n";
         };
