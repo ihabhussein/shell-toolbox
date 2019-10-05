@@ -159,7 +159,7 @@ sub makeold {
     @words = ('') if scalar @words == 0;
 
     my $sthCatchUp = $dbh->prepare($sql{MakeOld});
-    $sthCatchUp->execute($_, $_, $_) foreach @words;
+    $sthCatchUp->execute($_, $_) foreach @words;
 }
 
 ################################################################################
@@ -354,7 +354,7 @@ SELECT i.url, i.title, i.description, i.pubdate, f.title AS feedTitle
 -- MakeOld
 UPDATE items
    SET new = 0
- WHERE url = ? OR (? = '' AND title LIKE '%' || ? || '%');
+ WHERE url = ? OR title LIKE '%' || ? || '%';
 ----
 
 -- CleanUp
