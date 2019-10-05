@@ -10,7 +10,7 @@
 
  _youtube_dl() {
      local url=$1
-     local opts="-i -o %(title)s.%(ext)s --youtube-skip-dash-manifest"
+     local opts="-i --youtube-skip-dash-manifest"
      [ -n "$limit_rate" ] && opts="$opts -r $limit_rate"
      case "$url" in
           *youtube*) opts="$opts -f 18" ;;
