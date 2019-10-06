@@ -1,9 +1,0 @@
-#!/bin/sh
-
-find "${1:-.}" -type d -name '.git' | while read g; do
-    d=$(dirname "$g")
-    echo "==[ $d ]=="
-    GIT_DIR="$g" GIT_WORK_TREE="$d" git fetch origin 2>&1 >/dev/null
-    GIT_DIR="$g" GIT_WORK_TREE="$d" git status
-    echo
-done

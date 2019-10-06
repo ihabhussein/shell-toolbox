@@ -1,0 +1,30 @@
+#!/bin/sh
+
+
+case "$1" in
+status|diff|fetch|push)
+    cmd=$1 ;;
+*)
+    echo ENVALID COMMAND!
+    exit 1 ;;
+esac
+shift
+
+dir="$(cd "${1:-.}"; pwd)"
+shift
+
+extra="$@"
+
+process_dir() {
+    local GIT_DIR="$1"; export GIT_DIR
+    [ "$(git config --get --bool core.bare)" = 'true' ] && continue
+
+    local GIT_WORK_TREE="$(dirname -- "$1")"; export GIT_WORK_TREE
+    echo ">>> $GIT_WORK_TREE"
+    git $cmd $extra
+}
+
+
+find "$dir" -type d -name .git | while read d; do
+    process_dir "$d"
+done
