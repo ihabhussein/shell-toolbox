@@ -41,6 +41,6 @@ while getopts ':mgv' option; do
 done
 
 [ -n "$opt_m" ] && write_manifests
-[ -n "$opt_g" ] && git-backup -u $backup_git_user -d $backup_0/Attic/Projects
+[ -n "$opt_g" ] && git_backup -u $backup_git_user -d $backup_0/Attic/Projects
 mirrordir ${opt_v+-v} $HOME/ $backup_0/_/$USER
 mirror_disks
