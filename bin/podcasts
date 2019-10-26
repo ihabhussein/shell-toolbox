@@ -150,7 +150,7 @@ sub fetch {
     $sthNewItems->bind_columns(\$url, \$title, \$description, \$date, \$feedTitle);
     while ($sthNewItems->fetch) {
         say $title;
-        $sthUpdateItem->execute($url, $url, '') if downloadFile($url, {Continue => 1});
+        $sthUpdateItem->execute($url, $url) if downloadFile($url, {Continue => 1});
     }
 }
 
