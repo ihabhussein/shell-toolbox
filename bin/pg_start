@@ -1,15 +1,16 @@
 #!/bin/sh
 
-datadir="${PGDATA:-$(pwd)/.local/postgresql}"
+: "${PGDATA:?PGDATA must be defined!}"
+export PGUSER=postgres
 
-[ -d "$datadir" ] || (
-    mkdir -p "$datadir"
-    initdb -D "$datadir" -A trust -E UTF8 -U postgres
+[ -d "$PGDATA" ] || (
+    mkdir -p "$PGDATA"
+    initdb -D "$PGDATA" -A trust -E UTF8 -U "$PGUSER"
 )
 
-pg_isready >/dev/null || pg_ctl -w -D "$datadir" -l "$datadir/postgresql.log" start
+pg_isready >/dev/null || pg_ctl -w -D "$PGDATA" -l "$PGDATA/postgresql.log" start
 
-createuser -U postgres -l -d $USER 2> /dev/null
-createdb -U postgres -O $USER $USER 2> /dev/null
+createuser -l $USER 2> /dev/null
+createdb -O $USER $USER 2> /dev/null
 
-psql -U postgres -AtXc "SHOW data_directory"
+psql -AtXc "SHOW data_directory"
