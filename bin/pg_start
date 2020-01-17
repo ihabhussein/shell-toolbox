@@ -1,6 +1,6 @@
 #!/bin/sh
 
-datadir="${1-$(pwd)}/.local/postgresql"
+datadir="${PGDATA:-$(pwd)}/.local/postgresql"
 
 [ -d "$datadir" ] || (
     mkdir -p "$datadir"

@@ -10,6 +10,10 @@ mkdir -p "$localenv/bin" \
 localenv="$(cd "$localenv"; pwd)"
 export localenv
 
+# PostgreSQL
+PGDATA="$localenv/postgresql/"
+export PGDATA
+
 # Perl 5
 PERL5LIB="$localenv/lib/perl5${PERL5LIB:+:}$PERL5LIB"
 PERL_LOCAL_LIB_ROOT="$localenv${PERL_LOCAL_LIB_ROOT:+:}$PERL_LOCAL_LIB_ROOT"
