@@ -2,7 +2,7 @@
 
 case $(uname) in
 Darwin)
-    man -t $@ | open -f -a /Applications/Preview.app
+    man -t $@ | open -f -a Preview.app
     ;;
 *)
     for last; do true; done # Geting to the last argument
