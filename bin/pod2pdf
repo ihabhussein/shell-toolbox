@@ -1,0 +1,58 @@
+#!/bin/sh
+
+version=0.1
+
+_usage() {
+    cat <<__EOT__
+Usage:
+    $0 [-I libdir] [-x] [name_prefix]
+    $0 --help
+    $0 --version
+__EOT__
+    exit 0
+}
+_version() {
+    local cmd=$(basename -- $0)
+    printf '%s v%s\n' "$cmd" "${version-(unknown version)}"
+    exit 0
+}
+
+while getopts ':I:x' option; do
+    case $option in
+    \?)
+        long_option=$(eval "printf '%s' \"\$$OPTIND\"")
+        case $long_option in
+        --help)     _usage ;;
+        --version)  _version ;;
+        *)          printf 'Unknown option -%s\n' "$OPTARG"
+                    exit 1 ;;
+        esac ;;
+    \:)
+        printf 'Missing argument for -%s\n' "$OPTARG"
+        exit 1 ;;
+    I)
+        lib="$OPTARG" ;;
+    x)
+        suffix='.p*' ;;
+    *)
+        printf 'Unknow option %s\n' "$option"
+        exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+: ${lib:=$(pwd)}
+: ${prefix:=$lib/$(echo "$1" | sed 's|::|/|g')}
+: ${suffix=*}
+tmp="$(mktemp)"
+
+find -s "$lib" -name '*.pm' -o -name '*.pod' | while read name; do
+    case "$name" in
+    $prefix$suffix)
+        target=$(echo "${name#$lib/}" | sed 's|/|--|g')
+        target="${target%.p*}.ps"
+
+        pod2man "$name" > $tmp && man -t $tmp > "$target"
+        ;;
+    esac
+done
