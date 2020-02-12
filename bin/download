@@ -45,6 +45,7 @@ _download() {
   *soundcloud.com*) _youtube_dl "$url" ;;
         *rigb.org*) _youtube_dl "$url" ;;
      *cbsnews.com*) _youtube_dl "$url" ;;
+     *twitter.com*) _youtube_dl "$url" ;;
              http*) _curl       "$url" ;;
                  *) echo "Unknown URL: $url" ;;
     esac
