@@ -2,7 +2,7 @@
 
 # Local environment directory
 localenv="${1:-$(pwd)/.local}"
-node_modules="${a:-$(pwd)/node_modules}"
+node_modules="${1:-$(pwd)/node_modules}"
 shift
 mkdir -p "$localenv/bin" \
          "$localenv/lib/perl5" \
