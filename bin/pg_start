@@ -8,6 +8,28 @@ export PGUSER=postgres
     initdb -D "$PGDATA" -A trust -E UTF8 -U "$PGUSER"
 )
 
+set_config() {
+    local file="$PGDATA/postgresql.conf"
+    while [ -n "$2" ]; do
+        sed -i "" -E "/$1/d" "$file"
+        echo "$1 = $2" >> "$file"
+        shift; shift
+    done
+}
+
+case "$PGHOST" in
+$PGDATA)
+    set_config \
+        unix_socket_directories "'.'" \
+        listen_addresses "''" ;;
+/*)
+    set_config \
+        unix_socket_directories "'$PGHOST'" \
+        listen_addresses "''" ;;
+*)
+    : ;;
+esac
+
 pg_isready >/dev/null || pg_ctl -w -D "$PGDATA" -l "$PGDATA/postgresql.log" start
 
 createuser -l $USER 2> /dev/null

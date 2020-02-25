@@ -11,8 +11,9 @@ localenv="$(cd "$localenv"; pwd)"
 export localenv
 
 # PostgreSQL
-PGDATA="$localenv/postgresql/"
-export PGDATA
+PGDATA="$localenv/postgresql"
+PGHOST="$PGDATA"
+export PGDATA PGHOST
 
 # Perl 5
 PERL5LIB="$localenv/lib/perl5${PERL5LIB:+:}$PERL5LIB"
