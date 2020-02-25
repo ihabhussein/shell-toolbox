@@ -1,36 +1,47 @@
 #!/bin/sh
 
-VERSION=0.1
-USAGE="Usage:
-    $0 [-d]
-    $0 [--help | --version]"
+PGUSER=postgres
 
+print_usage() {
+    cat <<EOT
+Usage:
+    $0 [ -a ][ -d ]
+    $0 -l
+EOT
+}
 
-while getopts ':d' option; do
+list_servers() {
+    ps -a -x | sed -nE 's/.*postgres .*[-]D (.*) ?.*/\1/p'
+}
+
+kill_server() {
+    local PGDATA="$1"
+    [ -d "$PGDATA" ] || return
+    printf "Stopping %s\n" $PGDATA
+    pg_ctl -m fast -D "$PGDATA" -U "$PGUSER" stop
+
+    if [ -n "$DELETE_DIR" ]; then
+        printf "Deleting %s\n" $PGDATA
+        rm -r "$PGDATA"
+    fi
+}
+
+while getopts ':adl' option; do
     case $option in
+    a)  ALL=1 ;;
     d)  DELETE_DIR=1 ;;
-    \?) long_option=$(eval "echo \$$OPTIND")
-        case $long_option in
-        --help)    echo "$USAGE" ;;
-        --version) echo "$VERSION" ;;
-        *)         echo Unknown -$OPTARG ;;
-        esac
-        exit ;;
+    l)  list_servers; exit ;;
+    *)  print_usage; exit ;;
     esac
 done
 shift $((OPTIND - 1))
 
-
-pg_isready > /dev/null || exit
-datadir="$(psql -U postgres -AtXc 'SHOW data_directory')"
-pg_ctl -m fast -D "$datadir" -U postgres stop
-
-if [ -n "$DELETE_DIR" ]; then
-    printf "Deleting %s\n" $datadir
-    rm -r "$datadir"
-    datadir=$(dirname "$datadir")
-    if [ -n "$(find "$datadir" -depth 0 -empty)" ]; then
-        printf "Deleting %s\n" $datadir
-        rm -d "$datadir"
-    fi
+if [ -n "$ALL" ]; then
+    list_servers | while read d; do kill_server "$d"; done
+elif expr "$PGHOST" : '\/' >/dev/null; then
+    kill_server "$PGHOST"
+elif pg_isready >/dev/null; then
+    kill_server $(psql -U "$PGUSER" -AtXc 'SHOW data_directory')
+else
+    printf "Can not find a running server. Try %s -l\n" $(basename -- "$0")
 fi
