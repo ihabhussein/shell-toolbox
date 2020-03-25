@@ -27,7 +27,10 @@ $PGDATA)
         unix_socket_directories "'$PGHOST'" \
         listen_addresses "''" ;;
 *)
-    : ;;
+    set_config \
+        unix_socket_directories "''" \
+        listen_addresses "'$PGHOST'" \
+        port "${PGPORT:-5432}" ;;
 esac
 
 pg_isready >/dev/null || pg_ctl -w -D "$PGDATA" -l "$PGDATA/postgresql.log" start

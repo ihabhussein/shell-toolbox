@@ -12,7 +12,7 @@ export localenv
 
 # PostgreSQL
 PGDATA="$localenv/postgresql"
-PGHOST="$PGDATA"
+PGHOST="${PGHOST:-$PGDATA}"
 export PGDATA PGHOST
 
 # Perl 5
