@@ -3,7 +3,7 @@
 # Local environment directory
 localenv="${1:-$(pwd)/.local}"
 node_modules="${1:-$(pwd)/node_modules}"
-shift
+[ $# -gt 0 ] && shift
 mkdir -p "$localenv/bin" \
          "$localenv/lib/perl5" \
          "$localenv/lib/python"
