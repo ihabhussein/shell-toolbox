@@ -138,7 +138,7 @@ sub list {
     my $sthNewItems = $dbh->prepare($sql{GetItems});
     $sthNewItems->execute();
     $sthNewItems->bind_columns(\$url, \$title, \$description, \$date, \$feedTitle);
-    say "$title\n$feedTitle ($date)\n$description\n" while $sthNewItems->fetch;
+    say "$date $feedTitle - $title" while $sthNewItems->fetch;
 }
 
 sub fetch {
