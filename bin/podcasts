@@ -6,7 +6,7 @@ use warnings;
 use Cwd;
 use Getopt::Std;
 use Pod::Usage;
-use XML::Simple;
+use XML::LibXML;
 
 use DBI;
 
@@ -96,8 +96,12 @@ sub add {
         my $fileName = downloadFile($_, {Silent => 1});
         next unless $fileName;
 
-        my $xml = XMLin($fileName);
-        $sthAddFeed->execute($_, $xml->{channel}{title}, $xml->{channel}{description});
+        my $xml = XML::LibXML->load_xml(location => $fileName);
+        $sthAddFeed->execute(
+            $_,
+            $xml->findvalue('//channel/title'),
+            $xml->findvalue('//channel/description')
+        );
         unlink $fileName;
     }
 }
@@ -123,11 +127,16 @@ sub update {
         my $fileName = downloadFile($feedUrl, {Silent => 1});
         next unless $fileName;
 
-        my $xml = XML::Simple->new(ForceArray => ['item', 'enclosure']);
-        my $items = $xml->XMLin($fileName)->{channel}{item};
-        $sthAddItems->execute(
-            $_->{enclosure}[0]{url}, $feedUrl, $_->{title}, rfc822Date($_->{pubDate}), $_->{description}
-        ) foreach @{$items};
+        my $xml = XML::LibXML->load_xml(location => $fileName);
+        foreach my $item ($xml->findnodes('//item')) {
+            $sthAddItems->execute(
+                $item->findnodes('./enclosure')->[0]->getAttribute('url'),
+                $feedUrl,
+                $item->findvalue('./title'),
+                rfc822Date($item->findvalue('./pubDate')),
+                $item->findvalue('./description')
+            );
+        };
         unlink $fileName;
     }
 }
@@ -275,7 +284,7 @@ B<makeold> without keyword marks all episodes as old.
 
 =head1 DEPENDENCIES
 
-The script uses the non-core modules L<XML::Simple>, L<DBI>, and L<DBD::SQLite>.
+The script uses the non-core modules L<XML::LibXML>, L<DBI>, and L<DBD::SQLite>.
 
 The script uses B<curl> to download feeds andcontent.
 

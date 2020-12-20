@@ -1,7 +1,7 @@
 # podcasts
 requires 'DBI';
 requires 'DBD::SQLite';
-requires 'XML::Simple';
+requires 'XML::LibXML';
 
 # manifest
 requires 'JSON';
